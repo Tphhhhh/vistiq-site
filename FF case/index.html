@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VistIQ - The AI Investment Copilot</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- React & ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    
+    <!-- Babel -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <!-- Fonts: Inter + JetBrains Mono (Tech feel) -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    colors: {
+                        brand: {
+                            50: '#f0f9ff',
+                            100: '#e0f2fe',
+                            500: '#0ea5e9', // Sky blue
+                            600: '#0284c7',
+                            900: '#0c4a6e',
+                        },
+                        dark: {
+                            bg: '#050507',
+                            surface: '#0E0E11',
+                            border: '#1E1E24',
+                        }
+                    },
+                    backgroundImage: {
+                        'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
+                        'hero-glow': 'conic-gradient(from 180deg at 50% 50%, #0ea5e911 0deg, #6366f111 180deg, #0ea5e911 360deg)',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { background-color: #050507; color: #e2e8f0; }
+        .glass-panel {
+            background: rgba(14, 14, 17, 0.6);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .text-gradient {
+            background: linear-gradient(to right, #ffffff, #94a3b8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .text-gradient-blue {
+            background: linear-gradient(to right, #38bdf8, #818cf8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        /* Grid background pattern */
+        .bg-grid {
+            background-size: 40px 40px;
+            background-image: linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+                              linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+        }
+    </style>
+</head>
+<body>
+
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        // --- ICONS ---
+        const Icon = ({ name, className }) => {
+            // Simplified icon set with corrected fragments
+            const icons = {
+                chevronRight: <path d="m9 18 6-6-6-6"/>,
+                check: <polyline points="20 6 9 17 4 12"/>,
+                menu: <path d="M4 12h16M4 6h16M4 18h16"/>,
+                x: <path d="M18 6 6 18M6 6l12 12"/>,
+                zap: <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>,
+                shield: <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/>,
+                database: <><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/></>,
+                search: <><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></>,
+                chart: <><line x1="12" x2="12" y1="20" y2="10"/><line x1="18" x2="18" y1="20" y2="4"/><line x1="6" x2="6" y1="20" y2="16"/></>,
+                clock: <><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></>,
+                arrowUpRight: <><path d="M7 17L17 7"/><path d="M7 7h10v10"/></>
+            };
+            return (
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                    {icons[name] || icons.check}
+                </svg>
+            );
+        };
+
+        // --- COMPONENTS ---
+
+        const Button = ({ children, variant = 'primary', className = '' }) => {
+            const base = "px-6 py-3 rounded-lg font-medium transition-all duration-200 flex items-center justify-center gap-2";
+            const variants = {
+                primary: "bg-brand-600 hover:bg-brand-500 text-white shadow-lg shadow-brand-500/20",
+                secondary: "bg-dark-surface border border-dark-border hover:border-brand-500/50 text-slate-300 hover:text-white",
+                ghost: "text-slate-400 hover:text-white"
+            };
+            return <button className={`${base} ${variants[variant]} ${className}`}>{children}</button>;
+        };
+
+        const Badge = ({ children }) => (
+            <span className="px-3 py-1 rounded-full bg-brand-500/10 border border-brand-500/20 text-brand-500 text-xs font-mono uppercase tracking-wider">
+                {children}
+            </span>
+        );
+
+        const SectionHeader = ({ title, subtitle, badge }) => (
+            <div className="text-center max-w-3xl mx-auto mb-16 px-4">
+                {badge && <div className="mb-6 flex justify-center"><Badge>{badge}</Badge></div>}
+                <h2 className="text-3xl md:text-5xl font-bold mb-6 tracking-tight text-white">{title}</h2>
+                <p className="text-lg text-slate-400 leading-relaxed">{subtitle}</p>
+            </div>
+        );
+
+        // --- MAIN APP ---
+
+        const App = () => {
+            const [scrolled, setScrolled] = useState(false);
+            const [isMenuOpen, setIsMenuOpen] = useState(false);
+
+            useEffect(() => {
+                const handleScroll = () => setScrolled(window.scrollY > 50);
+                window.addEventListener('scroll', handleScroll);
+                return () => window.removeEventListener('scroll', handleScroll);
+            }, []);
+
+            return (
+                <div className="bg-dark-bg min-h-screen overflow-x-hidden selection:bg-brand-500/30">
+                    
+                    {/* NAV */}
+                    <nav className={`fixed w-full z-50 transition-all duration-300 border-b ${scrolled ? 'bg-dark-bg/80 backdrop-blur-xl border-dark-border' : 'bg-transparent border-transparent'}`}>
+                        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <div className="w-8 h-8 rounded bg-gradient-to-br from-brand-500 to-indigo-600 flex items-center justify-center font-bold text-white">V</div>
+                                <span className="text-xl font-bold tracking-tight text-white">Vist<span className="text-brand-500">IQ</span></span>
+                            </div>
+                            
+                            <div className="hidden md:flex items-center gap-8 text-sm font-medium text-slate-400">
+                                <a href="#product" className="hover:text-white transition-colors">Product</a>
+                                <a href="#features" className="hover:text-white transition-colors">Features</a>
+                                <a href="#security" className="hover:text-white transition-colors">Security</a>
+                                <a href="#roadmap" className="hover:text-white transition-colors">Roadmap</a>
+                            </div>
+
+                            <div className="hidden md:flex items-center gap-4">
+                                <a href="#" className="text-sm font-medium text-slate-300 hover:text-white">Login</a>
+                                <Button variant="primary" className="py-2 text-sm">Book Demo</Button>
+                            </div>
+
+                            <button className="md:hidden text-white" onClick={() => setIsMenuOpen(!isMenuOpen)}>
+                                <Icon name={isMenuOpen ? "x" : "menu"} className="w-6 h-6" />
+                            </button>
+                        </div>
+                    </nav>
+
+                    {/* HERO */}
+                    <section className="relative pt-32 pb-20 lg:pt-48 lg:pb-32 overflow-hidden">
+                        <div className="absolute inset-0 bg-grid opacity-20 pointer-events-none"></div>
+                        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-[800px] bg-hero-glow opacity-40 pointer-events-none blur-3xl"></div>
+                        
+                        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center z-10">
+                            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-brand-500/30 bg-brand-500/10 text-brand-400 text-sm font-medium mb-8 animate-fade-in-up">
+                                <span className="w-2 h-2 rounded-full bg-brand-500 animate-pulse"></span>
+                                The First Agentic Investment Copilot
+                            </div>
+                            
+                            <h1 className="text-5xl md:text-7xl lg:text-8xl font-bold tracking-tight mb-8 text-white leading-[1.1]">
+                                Invest Smarter.<br/>
+                                <span className="text-gradient-blue">Automate the Rest.</span>
+                            </h1>
+                            
+                            <p className="max-w-2xl mx-auto text-xl text-slate-400 mb-10 leading-relaxed">
+                                VistIQ is the end-to-end AI platform for VC and PE firms. Assess deals, monitor portfolios, and automate reporting in seconds, not days.
+                            </p>
+
+                            <div className="flex flex-col sm:flex-row gap-4 justify-center max-w-lg mx-auto mb-16">
+                                <input type="email" placeholder="work@fund.com" className="bg-white/5 border border-white/10 rounded-lg px-6 py-4 text-white placeholder-slate-500 focus:outline-none focus:border-brand-500 w-full" />
+                                <Button className="w-full sm:w-auto whitespace-nowrap">Get Early Access</Button>
+                            </div>
+
+                            {/* Social Proof Bar */}
+                            <div className="border-t border-white/5 pt-10">
+                                <p className="text-sm text-slate-500 mb-6 uppercase tracking-widest font-mono">Built for investors, by investors from</p>
+                                <div className="flex flex-wrap justify-center gap-8 md:gap-16 opacity-40 grayscale">
+                                    {/* Text logos for demo */}
+                                    <span className="text-xl font-bold font-serif">Founders Future</span>
+                                    <span className="text-xl font-bold font-serif">HEC PARIS</span>
+                                    <span className="text-xl font-bold font-serif">Polytechnique</span>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    {/* PAIN POINTS (The Why) */}
+                    <section className="py-24 bg-dark-surface border-y border-dark-border">
+                        <div className="max-w-7xl mx-auto px-4">
+                            <div className="grid md:grid-cols-2 gap-16 items-center">
+                                <div>
+                                    <h2 className="text-3xl md:text-4xl font-bold text-white mb-6">The smartest funds are slowed down by outdated tools.</h2>
+                                    <div className="space-y-8">
+                                        <div className="flex gap-4">
+                                            <div className="w-12 h-12 rounded-lg bg-red-500/10 flex items-center justify-center shrink-0 border border-red-500/20">
+                                                <Icon name="clock" className="w-6 h-6 text-red-500" />
+                                            </div>
+                                            <div>
+                                                <h3 className="text-lg font-bold text-white">Wasting 40% of time</h3>
+                                                <p className="text-slate-400">Manual entry, chasing data, and formatting slides. Time that should go to finding unicorns.</p>
+                                            </div>
+                                        </div>
+                                        <div className="flex gap-4">
+                                            <div className="w-12 h-12 rounded-lg bg-orange-500/10 flex items-center justify-center shrink-0 border border-orange-500/20">
+                                                <Icon name="database" className="w-6 h-6 text-orange-500" />
+                                            </div>
+                                            <div>
+                                                <h3 className="text-lg font-bold text-white">Broken Data & Risks</h3>
+                                                <p className="text-slate-400">Fragmented data across PDFs and Excels makes reporting error-prone and analysis impossible.</p>
+                                            </div>
+                                        </div>
+                                        <div className="flex gap-4">
+                                            <div className="w-12 h-12 rounded-lg bg-purple-500/10 flex items-center justify-center shrink-0 border border-purple-500/20">
+                                                <Icon name="chart" className="w-6 h-6 text-purple-500" />
+                                            </div>
+                                            <div>
+                                                <h3 className="text-lg font-bold text-white">Always Reactive</h3>
+                                                <p className="text-slate-400">No predictive signals. Unclear ownership tracking means missed exit opportunities.</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="relative">
+                                    {/* Abstract UI representation of chaos */}
+                                    <div className="absolute inset-0 bg-gradient-to-r from-brand-500/20 to-purple-500/20 blur-3xl rounded-full opacity-20"></div>
+                                    <div className="relative glass-panel rounded-2xl p-8 border border-white/10">
+                                        <div className="font-mono text-xs text-red-400 mb-4 flex items-center gap-2">
+                                            <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
+                                            SYSTEM ALERT: DATA FRAGMENTATION
+                                        </div>
+                                        <div className="space-y-3 opacity-60">
+                                            <div className="h-2 bg-slate-700 rounded w-3/4"></div>
+                                            <div className="h-2 bg-slate-700 rounded w-1/2"></div>
+                                            <div className="h-2 bg-slate-700 rounded w-5/6"></div>
+                                        </div>
+                                        <div className="mt-8 grid grid-cols-2 gap-4">
+                                            <div className="p-4 bg-black/40 rounded border border-white/5">
+                                                <div className="text-xs text-slate-500 mb-1">Spreadsheets</div>
+                                                <div className="text-red-400 font-mono">Sync Error</div>
+                                            </div>
+                                            <div className="p-4 bg-black/40 rounded border border-white/5">
+                                                <div className="text-xs text-slate-500 mb-1">Emails</div>
+                                                <div className="text-orange-400 font-mono">Unread (1,204)</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    {/* MARKET URGENCY */}
+                    <section className="py-20 bg-dark-bg">
+                        <div className="max-w-7xl mx-auto px-4 text-center">
+                            <h3 className="text-2xl font-medium text-white mb-12">The Opportunity is Now.</h3>
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+                                <div className="p-6 rounded-xl bg-white/5 border border-white/5">
+                                    <div className="text-4xl font-bold text-brand-500 mb-2">$11.8B</div>
+                                    <div className="text-xs text-slate-400 uppercase tracking-widest">Market Size 2032</div>
+                                </div>
+                                <div className="p-6 rounded-xl bg-white/5 border border-white/5">
+                                    <div className="text-4xl font-bold text-white mb-2">14.2%</div>
+                                    <div className="text-xs text-slate-400 uppercase tracking-widest">CAGR Growth</div>
+                                </div>
+                                <div className="p-6 rounded-xl bg-white/5 border border-white/5">
+                                    <div className="text-4xl font-bold text-white mb-2">76%</div>
+                                    <div className="text-xs text-slate-400 uppercase tracking-widest">VCs adopting AI</div>
+                                </div>
+                                <div className="p-6 rounded-xl bg-white/5 border border-white/5">
+                                    <div className="text-4xl font-bold text-white mb-2">2030</div>
+                                    <div className="text-xs text-slate-400 uppercase tracking-widest">PE AI Valuation Norm</div>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    {/* CORE PRODUCT (Bento Grid) */}
+                    <section id="features" className="py-24 relative overflow-hidden">
+                        <SectionHeader 
+                            badge="The Solution"
+                            title="Reinventing the Investment Journey" 
+                            subtitle="A 3-pillar approach built on a collective deal memory and agentic capabilities."
+                        />
+
+                        <div className="max-w-7xl mx-auto px-4 grid md:grid-cols-3 gap-6 auto-rows-[minmax(400px,auto)]">
+                            
+                            {/* CARD 1: ASSESS */}
+                            <div className="md:col-span-2 glass-panel rounded-3xl p-8 md:p-12 relative overflow-hidden group hover:border-brand-500/30 transition-all">
+                                <div className="relative z-10">
+                                    <div className="w-12 h-12 rounded-xl bg-brand-500/20 flex items-center justify-center mb-6 text-brand-400">
+                                        <Icon name="search" className="w-6 h-6" />
+                                    </div>
+                                    <h3 className="text-2xl font-bold text-white mb-4">Assess Deals with an Edge</h3>
+                                    <p className="text-slate-400 max-w-md mb-8">
+                                        Imagine everyone on your team had a photographic memory of every deal document ever created.
+                                    </p>
+                                    <ul className="space-y-3 text-slate-300 mb-8">
+                                        <li className="flex gap-2 items-center"><Icon name="check" className="w-4 h-4 text-brand-500"/> Automatic Memo Generation</li>
+                                        <li className="flex gap-2 items-center"><Icon name="check" className="w-4 h-4 text-brand-500"/> Connects to 100+ Data Sources</li>
+                                        <li className="flex gap-2 items-center"><Icon name="check" className="w-4 h-4 text-brand-500"/> Instant Historic Recall</li>
+                                    </ul>
+                                </div>
+                                {/* Mockup UI */}
+                                <div className="absolute right-0 bottom-0 w-1/2 h-3/4 bg-dark-bg border-t border-l border-white/10 rounded-tl-2xl p-6 shadow-2xl translate-y-8 group-hover:translate-y-4 transition-transform duration-500">
+                                    <div className="flex gap-2 mb-4">
+                                        <span className="text-xs font-mono text-slate-500">GENERATING MEMO...</span>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <div className="h-2 bg-slate-800 rounded w-full"></div>
+                                        <div className="h-2 bg-slate-800 rounded w-full"></div>
+                                        <div className="h-2 bg-slate-800 rounded w-2/3"></div>
+                                    </div>
+                                    <div className="mt-4 p-3 bg-brand-900/20 rounded border border-brand-500/20">
+                                        <div className="text-xs text-brand-400 font-bold mb-1">INSIGHT FOUND</div>
+                                        <div className="text-[10px] text-slate-400">Competitor X lowered pricing by 20% yesterday.</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* CARD 2: COLLECT */}
+                            <div className="glass-panel rounded-3xl p-8 relative overflow-hidden group hover:border-brand-500/30 transition-all">
+                                <div className="w-12 h-12 rounded-xl bg-emerald-500/20 flex items-center justify-center mb-6 text-emerald-400">
+                                    <Icon name="database" className="w-6 h-6" />
+                                </div>
+                                <h3 className="text-2xl font-bold text-white mb-4">Collect & Enrich</h3>
+                                <p className="text-slate-400 text-sm mb-6">
+                                    Real-time portfolio snapshot. Updates that matter, automatically logged.
+                                </p>
+                                <div className="bg-black/50 rounded-lg p-4 border border-white/5 text-xs font-mono">
+                                    <div className="flex justify-between mb-2">
+                                        <span className="text-slate-500">Smart Reconciliation</span>
+                                        <span className="text-emerald-400">ACTIVE</span>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <div className="flex justify-between p-2 bg-white/5 rounded">
+                                            <span>Duplicate Found</span>
+                                            <button className="text-brand-400">Merge</button>
+                                        </div>
+                                        <div className="flex justify-between p-2 bg-white/5 rounded">
+                                            <span>NAV Updated</span>
+                                            <span className="text-slate-500">Just now</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* CARD 3: MONITOR */}
+                            <div className="glass-panel rounded-3xl p-8 relative overflow-hidden group hover:border-brand-500/30 transition-all">
+                                <div className="w-12 h-12 rounded-xl bg-purple-500/20 flex items-center justify-center mb-6 text-purple-400">
+                                    <Icon name="zap" className="w-6 h-6" />
+                                </div>
+                                <h3 className="text-2xl font-bold text-white mb-4">Monitor & Decide</h3>
+                                <p className="text-slate-400 text-sm mb-6">
+                                    Scoring Engine ranks companies in real-time. Spot risks before they happen.
+                                </p>
+                                {/* Mini chart UI */}
+                                <div className="flex items-end gap-2 h-24 mt-4">
+                                    <div className="w-full bg-slate-800 rounded-t h-[40%]"></div>
+                                    <div className="w-full bg-slate-800 rounded-t h-[60%]"></div>
+                                    <div className="w-full bg-brand-600 rounded-t h-[80%] relative group-hover:h-[90%] transition-all duration-500">
+                                        <div className="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] text-white bg-brand-600 px-1 rounded opacity-0 group-hover:opacity-100 transition-opacity">9.1</div>
+                                    </div>
+                                    <div className="w-full bg-slate-800 rounded-t h-[50%]"></div>
+                                </div>
+                            </div>
+
+                            {/* CARD 4: REPORTING */}
+                            <div className="md:col-span-2 glass-panel rounded-3xl p-8 md:p-12 flex flex-col md:flex-row gap-12 items-center group hover:border-brand-500/30 transition-all">
+                                <div className="flex-1">
+                                    <div className="w-12 h-12 rounded-xl bg-orange-500/20 flex items-center justify-center mb-6 text-orange-400">
+                                        <Icon name="chart" className="w-6 h-6" />
+                                    </div>
+                                    <h3 className="text-2xl font-bold text-white mb-4">Agentic Reporting</h3>
+                                    <p className="text-slate-400 mb-6">
+                                        Never do a manual report again. Like your best intern, but faster and never sleeps. It delivers your LP reports to your inbox every quarter.
+                                    </p>
+                                    <Button variant="secondary" className="text-sm">See Sample PDF</Button>
+                                </div>
+                                <div className="flex-1 w-full relative">
+                                    <div className="absolute inset-0 bg-orange-500/20 blur-2xl rounded-full opacity-20"></div>
+                                    <div className="relative bg-dark-bg border border-white/10 rounded-xl p-6">
+                                        <div className="flex items-center gap-3 mb-4">
+                                            <div className="w-8 h-8 rounded-full bg-white/10"></div>
+                                            <div>
+                                                <div className="h-2 w-24 bg-slate-700 rounded mb-1"></div>
+                                                <div className="h-2 w-16 bg-slate-800 rounded"></div>
+                                            </div>
+                                        </div>
+                                        <div className="h-32 bg-slate-900 rounded border border-dashed border-slate-700 flex items-center justify-center text-slate-500 text-xs">
+                                            PDF PREVIEW GENERATED
+                                        </div>
+                                        <button className="w-full mt-4 bg-white text-black py-2 rounded text-xs font-bold">Approve & Send</button>
+                                    </div>
+                                </div>
+                            </div>
+
+                        </div>
+                    </section>
+
+                    {/* COPILOT DEMO */}
+                    <section className="py-24 bg-dark-surface border-y border-dark-border">
+                        <div className="max-w-7xl mx-auto px-4">
+                            <div className="grid lg:grid-cols-2 gap-16 items-center">
+                                <div>
+                                    <Badge>Conversational AI</Badge>
+                                    <h2 className="text-4xl font-bold text-white mt-6 mb-6">Your New Copilot.</h2>
+                                    <p className="text-lg text-slate-400 mb-8">
+                                        Get the answers you need. Instantly. Access augmented data in seconds using our conversational AI assistant.
+                                    </p>
+                                    <div className="space-y-4">
+                                        <div className="p-4 rounded-xl bg-white/5 border border-white/5 cursor-pointer hover:bg-white/10 transition-colors">
+                                            <p className="text-white font-medium">"What is the ARR of Company X?"</p>
+                                        </div>
+                                        <div className="p-4 rounded-xl bg-white/5 border border-white/5 cursor-pointer hover:bg-white/10 transition-colors">
+                                            <p className="text-white font-medium">"Which companies are at risk of running out of cash?"</p>
+                                        </div>
+                                        <div className="p-4 rounded-xl bg-white/5 border border-white/5 cursor-pointer hover:bg-white/10 transition-colors">
+                                            <p className="text-white font-medium">"Show me ownership evolution for ZenView."</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                {/* Chat UI Mockup */}
+                                <div className="bg-dark-bg border border-dark-border rounded-2xl shadow-2xl p-6 min-h-[500px] flex flex-col relative overflow-hidden">
+                                    <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-brand-500 via-purple-500 to-brand-500"></div>
+                                    
+                                    {/* Messages */}
+                                    <div className="flex-1 space-y-6 py-4">
+                                        <div className="flex gap-4">
+                                            <div className="w-8 h-8 rounded bg-brand-600 flex items-center justify-center text-white text-xs font-bold">V</div>
+                                            <div className="bg-white/10 p-3 rounded-2xl rounded-tl-none max-w-[80%] text-sm text-slate-200">
+                                                Hello! I've analyzed your portfolio. What would you like to know today?
+                                            </div>
+                                        </div>
+                                        
+                                        <div className="flex gap-4 flex-row-reverse">
+                                            <div className="w-8 h-8 rounded bg-slate-700 flex items-center justify-center text-white text-xs">You</div>
+                                            <div className="bg-brand-600 p-3 rounded-2xl rounded-tr-none max-w-[80%] text-sm text-white">
+                                                Show me the companies with no submitted KPI forms this quarter.
+                                            </div>
+                                        </div>
+
+                                        <div className="flex gap-4">
+                                            <div className="w-8 h-8 rounded bg-brand-600 flex items-center justify-center text-white text-xs font-bold">V</div>
+                                            <div className="bg-white/10 p-4 rounded-2xl rounded-tl-none max-w-[80%] text-sm text-slate-200">
+                                                <p className="mb-2">Found 2 companies missing KPI submissions:</p>
+                                                <ul className="space-y-2">
+                                                    <li className="flex items-center justify-between p-2 bg-black/20 rounded border border-white/5">
+                                                        <span>Greenloop</span>
+                                                        <span className="text-red-400 text-xs">Overdue 3 days</span>
+                                                    </li>
+                                                    <li className="flex items-center justify-between p-2 bg-black/20 rounded border border-white/5">
+                                                        <span>Hearthly</span>
+                                                        <span className="text-red-400 text-xs">Overdue 1 day</span>
+                                                    </li>
+                                                </ul>
+                                                <button className="mt-3 text-xs text-brand-400 font-bold hover:underline">Send reminder email ></button>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Input */}
+                                    <div className="relative mt-4">
+                                        <input type="text" placeholder="Ask anything about your portfolio..." className="w-full bg-white/5 border border-white/10 rounded-full px-6 py-3 text-sm text-white focus:outline-none focus:border-brand-500" />
+                                        <button className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 bg-brand-600 rounded-full text-white">
+                                            <Icon name="arrowUpRight" className="w-4 h-4" />
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    {/* SECURITY & TECH */}
+                    <section id="security" className="py-24 relative">
+                        <div className="max-w-7xl mx-auto px-4">
+                            <div className="grid md:grid-cols-2 gap-16">
+                                <div>
+                                    <h3 className="text-2xl font-bold text-white mb-6">Best-in-class Technology</h3>
+                                    <p className="text-slate-400 mb-8">Our architecture is built to learn, not just to record.</p>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="p-4 rounded border border-white/10 bg-white/5">
+                                            <div className="text-white font-mono font-bold mb-1">OpenAI GPT-5</div>
+                                            <div className="text-xs text-slate-500">Core Reasoning</div>
+                                        </div>
+                                        <div className="p-4 rounded border border-white/10 bg-white/5">
+                                            <div className="text-white font-mono font-bold mb-1">Claude 3.5</div>
+                                            <div className="text-xs text-slate-500">Context Window</div>
+                                        </div>
+                                        <div className="p-4 rounded border border-white/10 bg-white/5">
+                                            <div className="text-white font-mono font-bold mb-1">Perplexity</div>
+                                            <div className="text-xs text-slate-500">Live Web Search</div>
+                                        </div>
+                                        <div className="p-4 rounded border border-white/10 bg-white/5">
+                                            <div className="text-white font-mono font-bold mb-1">React/Node</div>
+                                            <div className="text-xs text-slate-500">Robust Stack</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div>
+                                    <h3 className="text-2xl font-bold text-white mb-6">Enterprise Security</h3>
+                                    <ul className="space-y-6">
+                                        <li className="flex gap-4">
+                                            <div className="w-10 h-10 rounded bg-emerald-500/10 flex items-center justify-center text-emerald-500 shrink-0">
+                                                <Icon name="shield" className="w-5 h-5"/>
+                                            </div>
+                                            <div>
+                                                <h4 className="text-white font-bold">Data Sovereignty</h4>
+                                                <p className="text-slate-400 text-sm">GDPR compliance and European hosting for sensitive financial information.</p>
+                                            </div>
+                                        </li>
+                                        <li className="flex gap-4">
+                                            <div className="w-10 h-10 rounded bg-emerald-500/10 flex items-center justify-center text-emerald-500 shrink-0">
+                                                <Icon name="check" className="w-5 h-5"/>
+                                            </div>
+                                            <div>
+                                                <h4 className="text-white font-bold">Single Source of Truth</h4>
+                                                <p className="text-slate-400 text-sm">No more duplicates. One single source with always clean, reliable data.</p>
+                                            </div>
+                                        </li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    {/* ROADMAP & TRACTION */}
+                    <section id="roadmap" className="py-24 bg-dark-surface border-t border-dark-border">
+                        <div className="max-w-7xl mx-auto px-4">
+                            <SectionHeader title="We Deliver Fast" subtitle="A clear roadmap to full agentic capability." />
+                            
+                            <div className="grid md:grid-cols-3 gap-8 relative">
+                                {/* Connecting line */}
+                                <div className="hidden md:block absolute top-6 left-0 w-full h-0.5 bg-gradient-to-r from-brand-500 to-slate-800 z-0"></div>
+                                
+                                <div className="relative z-10">
+                                    <div className="w-4 h-4 bg-brand-500 rounded-full border-4 border-dark-surface mb-6"></div>
+                                    <h4 className="text-brand-400 font-bold mb-2">Q4 2025</h4>
+                                    <p className="text-white font-bold mb-4">Copilot V1</p>
+                                    <ul className="text-sm text-slate-400 space-y-2">
+                                        <li>• Proprietary Scoring Engine</li>
+                                        <li>• Real-time Snapshot</li>
+                                    </ul>
+                                </div>
+
+                                <div className="relative z-10">
+                                    <div className="w-4 h-4 bg-slate-700 rounded-full border-4 border-dark-surface mb-6"></div>
+                                    <h4 className="text-slate-400 font-bold mb-2">S1 2026</h4>
+                                    <p className="text-white font-bold mb-4">Copilot V2</p>
+                                    <ul className="text-sm text-slate-400 space-y-2">
+                                        <li>• Enriched Company Profiles</li>
+                                        <li>• Agentic Reporting</li>
+                                    </ul>
+                                </div>
+
+                                <div className="relative z-10">
+                                    <div className="w-4 h-4 bg-slate-700 rounded-full border-4 border-dark-surface mb-6"></div>
+                                    <h4 className="text-slate-400 font-bold mb-2">S2 2026</h4>
+                                    <p className="text-white font-bold mb-4">Copilot V3</p>
+                                    <ul className="text-sm text-slate-400 space-y-2">
+                                        <li>• Deal Assessment</li>
+                                        <li>• Risk Alerts</li>
+                                        <li>• Ownership Tracking</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    {/* TEAM */}
+                    <section className="py-24 bg-dark-bg">
+                        <div className="max-w-7xl mx-auto px-4">
+                            <SectionHeader title="Leadership Team" subtitle="Entrepreneurial Track Record & Venture DNA" />
+                            <div className="grid md:grid-cols-3 gap-8">
+                                {[
+                                    { name: "Sarah Davila", role: "Product & Tech", desc: "10x Product Builder. Ex-Matera, Legalstart. Entrepreneur First Alumni.", school: "HEC & X" },
+                                    { name: "Marc Menasé", role: "Founder & Investor", desc: "Tech entrepreneur-investor. Founder of Founders Future.", school: "HEC Paris" },
+                                    { name: "Matthieu Benkerant", role: "Operations", desc: "Experienced leader in ops and entrepreneurship.", school: "HEC & UCL" }
+                                ].map((member, i) => (
+                                    <div key={i} className="p-6 rounded-2xl bg-white/5 border border-white/5 hover:border-brand-500/50 transition-colors">
+                                        <div className="w-16 h-16 rounded-full bg-gradient-to-br from-slate-700 to-slate-900 mb-6 flex items-center justify-center text-xl font-bold text-white border border-white/10">
+                                            {member.name.split(' ').map(n => n[0]).join('')}
+                                        </div>
+                                        <h3 className="text-xl font-bold text-white">{member.name}</h3>
+                                        <div className="text-brand-500 text-sm font-medium mb-4">{member.role}</div>
+                                        <p className="text-slate-400 text-sm mb-4">{member.desc}</p>
+                                        <div className="text-xs font-mono text-slate-500">{member.school}</div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </section>
+
+                    {/* FOOTER CTA */}
+                    <section className="py-32 relative overflow-hidden">
+                        <div className="absolute inset-0 bg-brand-900/20"></div>
+                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-brand-500/20 blur-[100px] rounded-full pointer-events-none"></div>
+                        <div className="relative z-10 text-center max-w-4xl mx-auto px-4">
+                            <h2 className="text-4xl md:text-6xl font-bold text-white mb-8">Ready to outperform?</h2>
+                            <p className="text-xl text-slate-300 mb-10">Join the waiting list today and be the first to experience the future of investment.</p>
+                            <Button className="mx-auto px-10 py-5 text-lg">Join Waiting List</Button>
+                        </div>
+                    </section>
+
+                    <footer className="border-t border-white/10 py-12 bg-dark-bg text-sm text-slate-500">
+                        <div className="max-w-7xl mx-auto px-4 flex flex-col md:flex-row justify-between items-center">
+                            <div className="flex items-center gap-2 mb-4 md:mb-0">
+                                <div className="w-6 h-6 rounded bg-slate-800 flex items-center justify-center font-bold text-white text-xs">V</div>
+                                <span className="font-bold text-white">VistIQ.</span>
+                            </div>
+                            <div className="flex gap-8">
+                                <a href="#" className="hover:text-white">Privacy</a>
+                                <a href="#" className="hover:text-white">Terms</a>
+                                <a href="#" className="hover:text-white">Contact</a>
+                            </div>
+                            <div className="mt-4 md:mt-0">© 2025 VistIQ AI. Paris, France.</div>
+                        </div>
+                    </footer>
+
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
